@@ -6,6 +6,7 @@
  */
 
 use Drupal\Core\Serialization\Yaml;
+use Drupal\logs_monitoring\Heartbeat;
 use Drupal\logs_monitoring\Plugin\rest\resource\CronMonitoring;
 use Drupal\user\Entity\Role;
 use Drupal\user\RoleInterface;
@@ -19,6 +20,7 @@ function logs_monitoring_install($is_syncing) {
     _logs_monitoring_grant_permissions([
       'restful get logs_monitoring',
       'restful get logs_monitoring_cron',
+      'restful get logs_monitoring_drush',
     ]);
   }
 }
@@ -40,6 +42,32 @@ function _logs_monitoring_grant_permissions(array $permissions) {
     }
     $role->save();
   }
+}
+
+/**
+ * Creates a REST resource config entity from the module's install config.
+ *
+ * @param string $id
+ *   The rest_resource_config entity ID, which is also the plugin ID.
+ */
+function _logs_monitoring_install_rest_resource(string $id) {
+  // The "restful get <id>" permission is derived from the REST resource config
+  // entity, so both the plugin definition and the entity have to exist before
+  // the permission is granted - Role::calculateDependencies() silently strips
+  // permissions it cannot resolve.
+  \Drupal::service('plugin.manager.rest')->clearCachedDefinitions();
+
+  $storage = \Drupal::entityTypeManager()->getStorage('rest_resource_config');
+  if (!$storage->load($id)) {
+    $module_path = \Drupal::service('extension.list.module')->getPath('logs_monitoring');
+    $file = DRUPAL_ROOT . '/' . $module_path . '/config/install/rest.resource.' . $id . '.yml';
+    $storage->create(Yaml::decode(file_get_contents($file)))->save();
+  }
+
+  _logs_monitoring_grant_permissions(['restful get ' . $id]);
+
+  // Make sure the route of the new endpoint becomes available.
+  \Drupal::service('router.builder')->setRebuildNeeded();
 }
 
 /**
@@ -68,4 +96,20 @@ function logs_monitoring_update_10001() {
 
   // Make sure the route of the new endpoint becomes available.
   \Drupal::service('router.builder')->setRebuildNeeded();
+}
+
+/**
+ * Adds the Drush monitoring endpoint and its staleness threshold.
+ */
+function logs_monitoring_update_10002() {
+  _logs_monitoring_install_rest_resource('logs_monitoring_drush');
+
+  $config = \Drupal::configFactory()->getEditable('logs_monitoring.settings');
+  if (!$config->get('drush_max_age')) {
+    $config->set('drush_max_age', Heartbeat::DEFAULT_MAX_AGE)->save();
+  }
+
+  // The endpoint stays at 503 until the heartbeat is recorded for the first
+  // time, which cannot happen until the crontab entry exists.
+  return (string) t('Schedule "drush logs-monitoring:heartbeat" in the system crontab, otherwise /admin/reports/drush-monitoring will keep reporting "never". See the module README.');
 }

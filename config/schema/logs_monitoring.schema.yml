@@ -24,3 +24,6 @@ logs_monitoring.settings:
     cron_max_age:
       type: integer
       label: 'Cron max age in seconds'
+    drush_max_age:
+      type: integer
+      label: 'Drush heartbeat max age in seconds'

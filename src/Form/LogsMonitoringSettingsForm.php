@@ -4,6 +4,7 @@ namespace Drupal\logs_monitoring\Form;
 
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\logs_monitoring\Heartbeat;
 use Drupal\logs_monitoring\Plugin\rest\resource\CronMonitoring;
 
 /**
@@ -123,6 +124,20 @@ class LogsMonitoringSettingsForm extends ConfigFormBase {
       ],
     ];
 
+    $form['drush_fieldset'] = [
+      '#type' => 'fieldset',
+      '#title' => $this->t('Drush monitoring'),
+      '#description' => $this->t('The heartbeat is recorded by the <code>logs-monitoring:heartbeat</code> Drush command, which has to be scheduled in the system crontab. See the module README for the crontab line.'),
+      'drush_max_age' => [
+        '#type' => 'number',
+        '#title' => $this->t('Drush heartbeat max age (seconds)'),
+        '#description' => $this->t('The Drush monitoring endpoint reports an error when the heartbeat has not been recorded within this many seconds. Keep it comfortably above the interval the command is scheduled at, so a single missed run does not raise an alert. 3600 = 1 hour, 86400 = 1 day.'),
+        '#default_value' => $settings->get('drush_max_age') ?: Heartbeat::DEFAULT_MAX_AGE,
+        '#min' => 1,
+        '#required' => TRUE,
+      ],
+    ];
+
     $form['actions']['add_config'] = [
       '#type' => 'submit',
       '#value' => $this->t('Add one more'),
@@ -203,6 +218,7 @@ class LogsMonitoringSettingsForm extends ConfigFormBase {
     $config
       ->set('log_configs', $log_configs)
       ->set('cron_max_age', (int) $form_state->getValue(['cron_fieldset', 'cron_max_age']))
+      ->set('drush_max_age', (int) $form_state->getValue(['drush_fieldset', 'drush_max_age']))
       ->save();
     parent::submitForm($form, $form_state);
   }

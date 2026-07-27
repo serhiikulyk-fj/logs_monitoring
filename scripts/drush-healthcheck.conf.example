@@ -1,0 +1,31 @@
+# Example configuration for drush-healthcheck.sh.
+#
+# Copy to one of the locations the script looks at (see --help) and edit:
+#
+#   cp drush-healthcheck.conf.example /etc/drush-healthcheck.conf
+#
+# This file is sourced by bash, so it is shell syntax, not ini.
+#
+# Setting these explicitly is strongly recommended for scheduled runs: the
+# script's auto-detection is a convenience for interactive use and can only
+# guess. A wrong guess would report a different site as healthy.
+
+# Composer root of the project (the directory containing vendor/).
+DRUPAL_ROOT="/var/www/example.com"
+
+# Drush binary. Usually $DRUPAL_ROOT/vendor/bin/drush.
+DRUSH_BIN="/var/www/example.com/vendor/bin/drush"
+
+# Sites to check, comma or space separated. Use "-" for a single-site install
+# (no --uri is passed). For a multisite, list the URIs Drush expects:
+#   DRUSH_HC_SITES="example.com, fr.example.com, de.example.com"
+DRUSH_HC_SITES="-"
+
+# Per-command timeout in seconds, so a hung database cannot wedge cron.
+DRUSH_HC_TIMEOUT=120
+
+# Optional external dead man's switch (Healthchecks.io, Cronitor, an
+# UptimeRobot heartbeat monitor). Curled only after a site passes every check.
+# "{site}" is replaced with the site URI, which is useful on a multisite where
+# each site has its own monitor.
+# DRUSH_HC_PING_URL="https://hc-ping.com/your-uuid-here"

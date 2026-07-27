@@ -1,0 +1,8 @@
+services:
+  # Registered under its class name so it can be autowired, which is how Drush
+  # command classes resolve their constructor arguments.
+  Drupal\logs_monitoring\Heartbeat:
+    arguments: ['@state', '@datetime.time']
+  logs_monitoring.heartbeat:
+    alias: Drupal\logs_monitoring\Heartbeat
+    public: true

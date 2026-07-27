@@ -1,2 +1,3 @@
 log_configs: []
 cron_max_age: 3600
+drush_max_age: 3600
