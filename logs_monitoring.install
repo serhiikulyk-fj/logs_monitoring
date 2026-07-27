@@ -5,6 +5,8 @@
  * Contains install and update routines.
  */
 
+use Drupal\Core\Serialization\Yaml;
+use Drupal\logs_monitoring\Plugin\rest\resource\CronMonitoring;
 use Drupal\user\Entity\Role;
 use Drupal\user\RoleInterface;
 
@@ -14,18 +16,56 @@ use Drupal\user\RoleInterface;
 function logs_monitoring_install($is_syncing) {
   // Add permissions to anonymous and authenticated roles.
   if (!$is_syncing) {
-    $permissions = [
+    _logs_monitoring_grant_permissions([
       'restful get logs_monitoring',
-    ];
-    $roles = Role::loadMultiple([
-      RoleInterface::ANONYMOUS_ID,
-      RoleInterface::AUTHENTICATED_ID
+      'restful get logs_monitoring_cron',
     ]);
-    foreach ($roles as $role) {
-      foreach ($permissions as $permission) {
-        $role->grantPermission($permission);
-      }
-      $role->save();
-    }
   }
+}
+
+/**
+ * Grants permissions to the anonymous and authenticated roles.
+ *
+ * @param array $permissions
+ *   The permission names to grant.
+ */
+function _logs_monitoring_grant_permissions(array $permissions) {
+  $roles = Role::loadMultiple([
+    RoleInterface::ANONYMOUS_ID,
+    RoleInterface::AUTHENTICATED_ID,
+  ]);
+  foreach ($roles as $role) {
+    foreach ($permissions as $permission) {
+      $role->grantPermission($permission);
+    }
+    $role->save();
+  }
+}
+
+/**
+ * Adds the cron monitoring endpoint and its staleness threshold.
+ */
+function logs_monitoring_update_10001() {
+  // The "restful get logs_monitoring_cron" permission is derived from the REST
+  // resource config entity, so both the plugin definition and the entity have
+  // to exist before the permission is granted - Role::calculateDependencies()
+  // silently strips permissions it cannot resolve.
+  \Drupal::service('plugin.manager.rest')->clearCachedDefinitions();
+
+  $storage = \Drupal::entityTypeManager()->getStorage('rest_resource_config');
+  if (!$storage->load('logs_monitoring_cron')) {
+    $module_path = \Drupal::service('extension.list.module')->getPath('logs_monitoring');
+    $file = DRUPAL_ROOT . '/' . $module_path . '/config/install/rest.resource.logs_monitoring_cron.yml';
+    $storage->create(Yaml::decode(file_get_contents($file)))->save();
+  }
+
+  $config = \Drupal::configFactory()->getEditable('logs_monitoring.settings');
+  if (!$config->get('cron_max_age')) {
+    $config->set('cron_max_age', CronMonitoring::DEFAULT_CRON_MAX_AGE)->save();
+  }
+
+  _logs_monitoring_grant_permissions(['restful get logs_monitoring_cron']);
+
+  // Make sure the route of the new endpoint becomes available.
+  \Drupal::service('router.builder')->setRebuildNeeded();
 }

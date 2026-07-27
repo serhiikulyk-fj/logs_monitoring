@@ -1,0 +1,26 @@
+logs_monitoring.settings:
+  type: config_object
+  label: 'Logs monitoring settings'
+  mapping:
+    log_configs:
+      type: sequence
+      label: 'Log configs'
+      sequence:
+        type: mapping
+        label: 'Log config'
+        mapping:
+          path_to_logs:
+            type: string
+            label: 'Path to the log'
+          search_words:
+            type: text
+            label: 'Error words to search'
+          exclude_words:
+            type: text
+            label: 'Words to exclude'
+          lines_count:
+            type: integer
+            label: 'Count of lines to read'
+    cron_max_age:
+      type: integer
+      label: 'Cron max age in seconds'

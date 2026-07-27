@@ -4,6 +4,7 @@ namespace Drupal\logs_monitoring\Form;
 
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\logs_monitoring\Plugin\rest\resource\CronMonitoring;
 
 /**
  * Settings Form for logs monitoring.
@@ -30,7 +31,8 @@ class LogsMonitoringSettingsForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
-    $config = $this->config('logs_monitoring.settings')->get('log_configs');
+    $settings = $this->config('logs_monitoring.settings');
+    $config = $settings->get('log_configs');
 
     // Get the number of log configs from configuration (on form load).
     // Otherwise, from in the form state(ajax request).
@@ -107,6 +109,19 @@ class LogsMonitoringSettingsForm extends ConfigFormBase {
         ],
       ];
     }
+
+    $form['cron_fieldset'] = [
+      '#type' => 'fieldset',
+      '#title' => $this->t('Cron monitoring'),
+      'cron_max_age' => [
+        '#type' => 'number',
+        '#title' => $this->t('Cron max age (seconds)'),
+        '#description' => $this->t('The cron monitoring endpoint reports an error when cron has not completed within this many seconds. 3600 = 1 hour, 86400 = 1 day.'),
+        '#default_value' => $settings->get('cron_max_age') ?: CronMonitoring::DEFAULT_CRON_MAX_AGE,
+        '#min' => 1,
+        '#required' => TRUE,
+      ],
+    ];
 
     $form['actions']['add_config'] = [
       '#type' => 'submit',
@@ -185,7 +200,10 @@ class LogsMonitoringSettingsForm extends ConfigFormBase {
       unset($log_config['actions']);
     }
 
-    $config->set('log_configs', $log_configs)->save();
+    $config
+      ->set('log_configs', $log_configs)
+      ->set('cron_max_age', (int) $form_state->getValue(['cron_fieldset', 'cron_max_age']))
+      ->save();
     parent::submitForm($form, $form_state);
   }
 
